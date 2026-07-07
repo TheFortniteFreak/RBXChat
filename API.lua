@@ -27,12 +27,11 @@ function ChatClient.Send(header, content)
 		return
 	end
 
-	local packet = {
+	Socket:Send(HttpService:JSONEncode({
 		header = header,
-		content = content
-	}
-
-	Socket:Send(HttpService:JSONEncode(packet))
+		content = content,
+		time = os.time()
+	}))
 end
 
 
