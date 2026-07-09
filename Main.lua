@@ -1,4 +1,4 @@
-(function(settings)
+return (function(settings)
 	local settings = settings or { -- true for show false to hide
 		executor = true, -- your executor
 		job = true, -- server you are in needs place id on
@@ -398,7 +398,7 @@
 	local queueteleport =  queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 	game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
 		if queueteleport then
-			queueteleport([[loadstring(game:HttpGet("https://chat-api-global.momo-momoisreal.workers.dev/"))(
+			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()(
 				{
 		executor = ]]..tostring(settings.executor)..[[,
 		job = ]]..tostring(settings.job)..[[,
