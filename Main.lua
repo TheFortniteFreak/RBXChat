@@ -1,30 +1,64 @@
-return (function(settings)
+(function(settings)
 	local settings = settings or { -- true for show false to hide
-		executor = true, -- your executor
-		job = true, -- server you are in needs place id on
-		placeid = true, -- game you are in
-		country = true, -- country you are in
-		theme = Color3.fromRGB(255,0,0) -- theme
+		showexecutor = true, -- your executor
+		allowjoining = true, -- server you are in needs place id on
+		showgame = true, -- game you are in
+		showcountry = true, -- country you are in
+		theme = Color3.fromHex("#ff0000"), -- theme
+		maxmessage = 150,
 	} 
+
+	local rcassets = {
+		[".RBXChat/assets/settings.png"] = "rbxassetid://1204397029"
+	}
+	local waxgetcustomasset = getcustomasset or getsynasset
+	local function getcustomasset(asset)
+		if waxgetcustomasset then
+			local success, result = pcall(function()
+				return waxgetcustomasset(asset)
+			end)
+			if success and result ~= nil and result ~= "" then
+				return result
+			end
+		end
+		return rcassets[asset]
+	end
+
+	if makefolder and isfolder and writefile and isfile then
+		pcall(function()
+			local assets = "https://raw.githubusercontent.com/infyiff/backup/refs/heads/main/"
+			for _, folder in {".RBXChat", ".RBXChat/assets"} do
+				if not isfolder(folder) then
+					makefolder(folder)
+				end
+			end
+			for path in rcassets do
+				if not isfile(path) then
+					writefile(path, game:HttpGet((path:gsub(".RBXChat/", assets))))
+				end
+			end
+			if false then writefile(".RBXChat/assets/.nomedia", "") end
+		end)
+	end
 
 	local Players = game:GetService("Players")
 
 	local get = {
-		["executor"] = function()
-			if settings.executor then
+		["showexecutor"] = function()
+			if settings.showexecutor then
 				local exec, ver = identifyexecutor()
 				return exec
 			end
 			return "Unknown"
 		end,
-		["job"] = function()
-			if settings.job and settings.placeid then
+		["allowjoining"] = function()
+			if settings.allowjoining and settings.showgame then
 				return game.JobId
 			end
 			return "0"
 		end,
-		["placeid"] = function()
-			if settings.placeid then
+		["showgame"] = function()
+			if settings.showgame then
 				return game.PlaceId
 			end
 			return 0
@@ -39,11 +73,6 @@ return (function(settings)
 		return
 	end
 
-	local function isInFunction()
-		local info = debug.getinfo(3, "f")
-		return info ~= nil and info.func ~= nil
-	end
-
 	api.Connect("wss://chat-api-global.momo-momoisreal.workers.dev")
 
 	local theme = settings.theme
@@ -52,18 +81,18 @@ return (function(settings)
 		local LocalizationService = game:GetService("LocalizationService")
 		local Players = game:GetService("Players")
 		local player = Players.LocalPlayer
-		local success, country = pcall(function()
+		local success, showcountry = pcall(function()
 			return LocalizationService:GetCountryRegionForPlayerAsync(player)
 		end)
 		if success then
-			return country
+			return showcountry
 		else
 			return "Unknown"
 		end
 	end
 
 	local function countryToEmoji(countryCode)
-		if #countryCode ~= 2 then
+		if #countryCode ~= 2 or countryCode == "Unknown" then
 			return "🏳️"
 		end
 
@@ -148,8 +177,8 @@ return (function(settings)
 		return name
 	end
 
-	get["country"] = function()
-		if settings.country then
+	get["showcountry"] = function()
+		if settings.showcountry then
 			return {
 		code = getcountry(), 
 		flag = countryToEmoji(getcountry()), 
@@ -168,19 +197,18 @@ return (function(settings)
 		userid = game:GetService("Players").LocalPlayer.UserId,
 		displayname = getSuperName(game:GetService("Players").LocalPlayer)
 	},
-	executor = get.executor(),
-	job = game.JobId, 
-	placeid = game.PlaceId, 
-	country = {
-		code = getcountry(), 
-		flag = countryToEmoji(getcountry()), 
-		name = (Countries[getcountry()] or "Unknown")
-	}},
+	showexecutor = get.showexecutor(),
+	allowjoining = game.JobId, 
+	showgame = game.PlaceId, 
+	showcountry = get.showcountry()},
 	msg)
 	end
 
 	local twin = game:GetService("TweenService")
-
+	local bih = game:GetService("CoreGui"):FindFirstChild("RBXChat") 
+	if bih then
+		bih:Destroy()
+	end
 	local Ui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 	local gts = 24/1440*(Ui.AbsoluteSize.Y) -- global text size
 	Ui.Name = "RBXChat"
@@ -189,32 +217,34 @@ return (function(settings)
 	Ui.IgnoreGuiInset = true
 
 	local TeleportService = game:GetService("TeleportService")
-	local function playerinf(user, job, placeid, country, executor)
+	local function playerinf(user, allowjoining, showgame, showcountry, showexecutor)
 		local canjoin = true
-		local contr = country["flag"].." "..country["name"]
+		local contr = showcountry["flag"].." "..showcountry["name"]
 		local headshot, isReady = Players:GetUserThumbnailAsync(
 			user["userid"],
 			Enum.ThumbnailType.HeadShot,
 			Enum.ThumbnailSize.Size420x420
 		)
-		if job == "0" or placeid == 0 then
+		if allowjoining == "0" or showgame == 0 then
 			canjoin = false
 		end
 		local function join()
 			if canjoin then
-				TeleportService:TeleportToPlaceInstance(placeid,job,game:GetService("Players").LocalPlayer)
+				TeleportService:TeleportToPlaceInstance(showgame,allowjoining,game:GetService("Players").LocalPlayer)
 			end
 		end
 		local gameinfo
-		if placeid ~= 0 then
-			gameinfo = MarketplaceService:GetProductInfo(placeid)
+		if showgame ~= 0 then
+			gameinfo = MarketplaceService:GetProductInfo(showgame)
 		end
 		--ui
 		local Frame = Instance.new("Frame", Ui)
 		Frame.Size = UDim2.new(0.2,0,0.4,0)
 		Frame.AnchorPoint = Vector2.new(0.5,0.5)
 		Frame.Position = UDim2.new(0.5,0,0.5,0)
+		Frame.BorderSizePixel = 0
 		local Move = Instance.new("UIDragDetector", Frame)
+		Move.DragRelativity = Enum.UIDragDetectorDragRelativity.Relative
 		local Aspect = Instance.new("UIAspectRatioConstraint", Frame)
 		Aspect.AspectRatio = 4/3
 		Aspect.DominantAxis = Enum.DominantAxis.Height
@@ -234,10 +264,72 @@ return (function(settings)
 		close.Activated:Connect(function()
 			Frame:Destroy()
 		end)
-	end
+		local pfp = Instance.new("ImageLabel", Frame)
+		pfp.AnchorPoint = Vector2.new(0,0)
+		pfp.Position = UDim2.new(0,0,0.06,0)
+		pfp.Size = UDim2.new(0,0,0.3,0)
+		pfp.ScaleType = Enum.ScaleType.Fit
+		task.wait()
+		pfp.Size = UDim2.new(0.3,0,0.3,0)
+		pfp.BackgroundTransparency = 1
+		pfp.Image = headshot
+		local Aspect = Instance.new("UIAspectRatioConstraint", pfp)
+		Aspect.AspectRatio = 1
+		Aspect.DominantAxis = Enum.DominantAxis.Width
+		Aspect.AspectType = Enum.AspectType.FitWithinMaxSize
+		local name = Instance.new("TextLabel", Frame)
+		name.AnchorPoint = Vector2.new(0,0)
+		name.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06,0)
+		name.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+		name.Text = user["displayname"]
+		name.TextSize = gts/1.3
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.BackgroundTransparency = 1
+		name.BorderSizePixel = 0
+		local con = Instance.new("TextLabel", Frame)
+		con.AnchorPoint = Vector2.new(0,0)
+		con.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+		con.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+		con.Text = contr
+		con.TextSize = gts/1.3
+		con.TextXAlignment = Enum.TextXAlignment.Left
+		con.BackgroundTransparency = 1
+		con.BorderSizePixel = 0
 
-	local function settings()
+		local exe = Instance.new("TextLabel", Frame)
+		exe.AnchorPoint = Vector2.new(0,0)
+		exe.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3*2,0)
+		exe.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+		exe.Text = showexecutor
+		exe.TextSize = gts/1.3
+		exe.TextXAlignment = Enum.TextXAlignment.Left
+		exe.BackgroundTransparency = 1
+		exe.BorderSizePixel = 0
+
+		Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			task.wait()
+			close.Size = UDim2.new(0,0,0.06,0)
+			task.wait()
+			close.Size = UDim2.new(0,close.AbsoluteSize.Y,0.06,0)
+			gts = 24/1440*(Ui.AbsoluteSize.Y)
+			name.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06,0)
+			name.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+			con.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+			con.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+			name.TextSize = gts/1.3
+			con.TextSize = gts/1.3
+			exe.TextSize = gts/1.3
+			exe.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3*2,0)
+			exe.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
+		end)
+	end
+	local thmupd = Instance.new("BindableEvent")
+	local function settin()
+		if Ui:FindFirstChild("Setting") then
+			Ui:FindFirstChild("Setting"):Destroy()
+		end
 		local Frame = Instance.new("Frame", Ui)
+		Frame.Name = "Setting"
 		Frame.Size = UDim2.new(0.2,0,0.4,0)
 		Frame.AnchorPoint = Vector2.new(0.5,0.5)
 		Frame.Position = UDim2.new(0.5,0,0.5,0)
@@ -261,6 +353,135 @@ return (function(settings)
 		close.Activated:Connect(function()
 			Frame:Destroy()
 		end)
+		local function maketoggle(named, setting, par)
+			local current = settings[setting]
+			local full = Instance.new("Frame", par)
+			full.Size = UDim2.new(1,0,1/5,0)
+			full.BackgroundTransparency = 1
+			full.BorderSizePixel = 0
+
+			local name = Instance.new("TextLabel",full)
+			name.Text = named
+			name.Size = UDim2.new(0.6,0,0.5,0)
+			name.Position = UDim2.new(0.1,0,0.5,0)
+			name.AnchorPoint = Vector2.new(0,0.5)
+			name.TextSize = gts/1.7
+			name.BackgroundTransparency = 1
+			name.BorderSizePixel = 0
+			name.TextXAlignment = Enum.TextXAlignment.Right
+
+			local tggle = Instance.new("Frame", full)
+			tggle.Size = UDim2.new(0.5,0,0.5,0)
+			tggle.Position = UDim2.new(0.9,0,0.5,0)
+			tggle.AnchorPoint = Vector2.new(1,0.5)
+			if current then
+				tggle.BackgroundColor3 = Color3.new(0,1,0)
+			else
+				tggle.BackgroundColor3 = Color3.new(0.5,0.5,0.5)
+			end
+			local corn = Instance.new("UICorner", tggle)
+			corn.CornerRadius = UDim.new(1,0)
+			local asp = Instance.new("UIAspectRatioConstraint", tggle)
+			asp.AspectRatio = 2/1
+
+			local ball = Instance.new("Frame", tggle)
+			ball.Size = UDim2.new(0.85/2,0,0.85,0)
+			if current then
+				ball.Position = UDim2.new(1-(1-0.85)/4,0,0.5,0)
+				ball.AnchorPoint = Vector2.new(1,0.5)
+			else
+				ball.Position = UDim2.new((1-0.85)/4,0,0.5,0)
+				ball.AnchorPoint = Vector2.new(0,0.5)
+			end
+			ball.BackgroundColor3 = Color3.new(1,1,1)
+			local corn2 = Instance.new("UICorner", ball)
+			corn2.CornerRadius = UDim.new(1,0)
+			local btn = Instance.new("TextButton",tggle)
+			btn.Size = UDim2.new(1,0,1,0)
+			btn.Text = ""
+			btn.BackgroundTransparency = 1
+			btn.BorderSizePixel = 0
+			btn.Activated:Connect(function()
+				current = not current
+				settings[setting] = current
+				if current then
+					tggle.BackgroundColor3 = Color3.new(0,1,0)
+				else
+					tggle.BackgroundColor3 = Color3.new(0.5,0.5,0.5)
+				end
+				if current then
+					ball.Position = UDim2.new(1-(1-0.85)/4,0,0.5,0)
+					ball.AnchorPoint = Vector2.new(1,0.5)
+				else
+					ball.Position = UDim2.new((1-0.85)/4,0,0.5,0)
+					ball.AnchorPoint = Vector2.new(0,0.5)
+				end
+			end)
+			Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+				task.wait()
+				name.TextSize = gts/1.3
+			end)
+		end
+
+		local function makec3(named, setting, par)
+			local current = settings[setting]
+			local full = Instance.new("Frame", par)
+			full.Size = UDim2.new(1,0,1/5,0)
+			full.BackgroundTransparency = 1
+			full.BorderSizePixel = 0
+
+			local name = Instance.new("TextLabel",full)
+			name.Text = named
+			name.Size = UDim2.new(0.6,0,0.5,0)
+			name.Position = UDim2.new(0.1,0,0.5,0)
+			name.AnchorPoint = Vector2.new(0,0.5)
+			name.TextSize = gts/1.7
+			name.BackgroundTransparency = 1
+			name.BorderSizePixel = 0
+			name.TextXAlignment = Enum.TextXAlignment.Right
+
+			local tggle = Instance.new("TextBox", full)
+			tggle.Size = UDim2.new(0.5,0,0.5,0)
+			tggle.Position = UDim2.new(0.9,0,0.5,0)
+			tggle.AnchorPoint = Vector2.new(1,0.5)
+			tggle.Text = "#"..current:ToHex()
+			tggle.PlaceholderText = "Hex"
+			tggle.TextSize = gts/1.75
+			tggle.ClearTextOnFocus = false
+			local asp = Instance.new("UIAspectRatioConstraint", tggle)
+			asp.AspectRatio = 2/1
+			
+			tggle.FocusLost:Connect(function()
+				local clr = Color3.fromHex(tggle.Text)
+				if clr then
+					current = clr
+					theme = clr
+					settings[setting] = clr
+					thmupd:Fire(clr)
+				end
+			end)
+
+			Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+				task.wait()
+				name.TextSize = gts/1.7
+				tggle.TextSize = gts/1.75
+			end)
+		end
+
+		local sframe = Instance.new("Frame", Frame)
+		sframe.Size = UDim2.new(1,0,1,-close.AbsoluteSize.X)
+		sframe.Position = UDim2.new(0,0,1,0)
+		sframe.AnchorPoint = Vector2.new(0,1)
+		sframe.BackgroundTransparency = 1
+		sframe.BorderSizePixel = 0
+		local list = Instance.new("UIListLayout", sframe)
+		list.FillDirection = Enum.FillDirection.Vertical
+
+		maketoggle("Show Executor","showexecutor",sframe)
+		maketoggle("Show Game","showgame",sframe)
+		maketoggle("Allow Joining (Needs Show Game)","allowjoining",sframe)
+		maketoggle("Show Country","showcountry",sframe)
+		makec3("Theme Color", "theme",sframe)
 	end
 
 
@@ -328,6 +549,18 @@ return (function(settings)
 		tween:Play()
 		togglevisibility()
 	end)
+
+	local sett = Instance.new("ImageButton", MainFrame)
+	local Aspect3 = Instance.new("UIAspectRatioConstraint", sett)
+	Aspect3.AspectRatio = 1
+	sett.Image = getcustomasset(".RBXChat/assets/settings.png")
+	sett.AnchorPoint = Vector2.new(1,0)
+	sett.Position = UDim2.new(1,0,1,0)
+	sett.Size = UDim2.new(0.05,0,0.05,0)
+	sett.ImageColor3 = theme
+	sett.BackgroundTransparency = 1
+	sett.Activated:Connect(settin)
+
 	local input = Instance.new("Frame", MainFrame)
 	input.AnchorPoint = Vector2.new(0.5,1)
 	input.Position = UDim2.new(0.5,0,0.985,0)
@@ -358,6 +591,8 @@ return (function(settings)
 	submitt.TextSize = gts
 	submitt.TextColor3 = Color3.new(1,1,1)
 	submitt.BackgroundColor3 = theme
+	submitt.TextStrokeTransparency = 0
+	submitt.TextStrokeColor3 = Color3.new(0,0,0)
 
 	submitt.Activated:Connect(function()
 		if text.Text == "" then return end
@@ -400,11 +635,12 @@ return (function(settings)
 		if queueteleport then
 			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()(
 				{
-		executor = ]]..tostring(settings.executor)..[[,
-		job = ]]..tostring(settings.job)..[[,
-		placeid = ]]..tostring(settings.placeid)..[[,
-		country = ]]..tostring(settings.country)..[[,
-		theme = Color3.fromRGB(]]..tostring(settings.theme.R)..[[,]]..tostring(settings.theme.G)..[[,]]..tostring(settings.theme.B)..[[)	
+		showexecutor = ]]..tostring(settings.showexecutor)..[[,
+		allowjoining = ]]..tostring(settings.allowjoining)..[[,
+		showgame = ]]..tostring(settings.showgame)..[[,
+		showcountry = ]]..tostring(settings.showcountry)..[[,
+		theme = Color3.fromHex("#]]..settings.theme:ToHex()..[["),	
+		maxmessage = ]]..tostring(settings.maxmessage)..[[,		
 				}
 			)]])
 		end
@@ -442,10 +678,12 @@ return (function(settings)
 		local headshot = Instance.new("ImageLabel", user)
 		headshot.AnchorPoint = Vector2.new(0,0)
 		headshot.Position = UDim2.new(0,0,0,0)
-		headshot.Size = UDim2.new(0,0,1,0)
+		headshot.Size = UDim2.new(0.6,0,0.6,0)
 		headshot.ScaleType = Enum.ScaleType.Fit
-		task.wait()
-		headshot.Size = UDim2.new(0,headshot.AbsoluteSize.Y,0.5,0)
+		local Aspect = Instance.new("UIAspectRatioConstraint", headshot)
+		Aspect.AspectRatio = 1
+		Aspect.DominantAxis = Enum.DominantAxis.Width
+		Aspect.AspectType = Enum.AspectType.FitWithinMaxSize
 		headshot.BackgroundTransparency = 1
 		headshot.Image = imageUrl
 		local open = Instance.new("TextButton", user)
@@ -456,7 +694,7 @@ return (function(settings)
 		open.BackgroundTransparency = 1
 		open.BorderSizePixel = 0
 		open.Activated:Connect(function()
-			playerinf(header["user"],header["job"],header["placeid"],header["country"],header["executor"])
+			playerinf(header["user"],header["allowjoining"],header["showgame"],header["showcountry"],header["showexecutor"])
 		end)
 		local name = Instance.new("TextLabel", user)
 		name.AnchorPoint = Vector2.new(0,1)
@@ -488,6 +726,8 @@ return (function(settings)
 		tim.TextColor3 = Color3.new(1,1,1)
 		tim.BackgroundTransparency = 1
 		tim.TextXAlignment = Enum.TextXAlignment.Right
+		tim.TextStrokeTransparency = 0
+		tim.TextStrokeColor3 = Color3.new(0,0,0)
 		task.spawn(function()
 			while wait(10) and tim.Parent do
 				local tag = getTimeAgo(time)
@@ -502,9 +742,6 @@ return (function(settings)
 			task.wait()
 			mesg.TextSize = gts
 			name.TextSize = gts
-			headshot.Size = UDim2.new(0,0,1,0)
-			task.wait()
-			headshot.Size = UDim2.new(0,headshot.AbsoluteSize.Y,0.5,0)
 			Message.Size = UDim2.new(0.99,0,0,scroll.AbsoluteSize.Y * 0.25)
 		end)
 		local strks = Instance.new("UIStroke", Message)
@@ -523,10 +760,21 @@ return (function(settings)
 		submitt.TextSize = gts
 		list.Padding = UDim.new(0,gts/2)
 	end)
+	thmupd.Event:Connect(function(clr)
+		grad.Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0, Color3.new(0,0,0)),
+			ColorSequenceKeypoint.new(0.125, Color3.new(0,0,0)),
+			ColorSequenceKeypoint.new(1, clr)
+		}
+		submitt.BackgroundColor3 = clr
+		shide.TextColor3 = clr
+		sett.ImageColor3 = clr
+	end)
 end)({ -- true for show false to hide
-		executor = true, -- your executor
-		job = true, -- server you are in needs place id on
-		placeid = true, -- game you are in
-		country = true, -- country you are in
-		theme = Color3.fromRGB(255,0,0) -- theme
+		showexecutor = true, -- your executor
+		allowjoining = true, -- server you are in needs place id on
+		showgame = true, -- game you are in
+		showcountry = true, -- country you are in
+		theme = Color3.fromHex("#ff0000"), -- theme
+		maxmessage = 150, -- -1 for inf
 	})
