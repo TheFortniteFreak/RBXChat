@@ -1,15 +1,32 @@
 (function(settings)
-	local settings = settings or { -- true for show false to hide
-		showexecutor = true, -- your executor
-		allowjoining = true, -- server you are in needs place id on
-		showgame = true, -- game you are in
-		showcountry = true, -- country you are in
-		theme = Color3.fromHex("#ff0000"), -- theme
-		maxmessage = 150,
-	} 
+	local HttpService = game:GetService("HttpService")
+	for _, folder in {".RBXChat", ".RBXChat/assets"} do
+		if not isfolder(folder) then
+			makefolder(folder)
+		end
+	end
 
+	if settings == nil then
+		if isfile(".RBXChat/settings.json") then
+			settings = HttpService:JSONDecode(readfile(".RBXChat/settings.json"))
+		else
+			settings = { -- true for show false to hide
+				showexecutor = true, -- your executor
+				allowjoining = true, -- server you are in needs place id on
+				showgame = true, -- game you are in
+				showcountry = true, -- country you are in
+				theme = "#ff0000", -- theme
+				maxmessage = 150, -- -1 for inf
+			}
+			writefile(".RBXChat/settings.json", HttpService:JSONEncode(settings))
+		end
+	else
+		writefile(".RBXChat/settings.json", HttpService:JSONEncode(settings))
+	end
+	local maxm = Instance.new("BindableEvent")
 	local rcassets = {
-		[".RBXChat/assets/settings.png"] = "rbxassetid://1204397029"
+		[".RBXChat/assets/settings.png"] = "rbxassetid://1204397029",
+		[".RBXChat/assets/copy.png"] = "rbxassetid://95123614768661"
 	}
 	local waxgetcustomasset = getcustomasset or getsynasset
 	local function getcustomasset(asset)
@@ -27,11 +44,6 @@
 	if makefolder and isfolder and writefile and isfile then
 		pcall(function()
 			local assets = "https://raw.githubusercontent.com/infyiff/backup/refs/heads/main/"
-			for _, folder in {".RBXChat", ".RBXChat/assets"} do
-				if not isfolder(folder) then
-					makefolder(folder)
-				end
-			end
 			for path in rcassets do
 				if not isfile(path) then
 					writefile(path, game:HttpGet((path:gsub(".RBXChat/", assets))))
@@ -47,7 +59,7 @@
 		["showexecutor"] = function()
 			if settings.showexecutor then
 				local exec, ver = identifyexecutor()
-				return exec
+				return exec.." "..ver
 			end
 			return "Unknown"
 		end,
@@ -61,8 +73,8 @@
 			if settings.showgame then
 				return game.PlaceId
 			end
-			return 0
-		end
+			return 76841226351570
+		end,
 	}
 
 
@@ -75,7 +87,8 @@
 
 	api.Connect("wss://chat-api-global.momo-momoisreal.workers.dev")
 
-	local theme = settings.theme
+	local theme = Color3.fromHex(settings.theme)
+	local thmupd = Instance.new("BindableEvent")
 
 	local function getcountry()
 		local LocalizationService = game:GetService("LocalizationService")
@@ -179,17 +192,38 @@
 
 	get["showcountry"] = function()
 		if settings.showcountry then
+			local c = getcountry()
 			return {
-		code = getcountry(), 
-		flag = countryToEmoji(getcountry()), 
-		name = (Countries[getcountry()] or "Unknown")
+		code = c, 
+		flag = countryToEmoji(c), 
+		name = (Countries[c] or "Unknown")
 	}
 		end
 		return {code = "Unknown",
 	flag = countryToEmoji("Unknown"),
 	name = "Unknown"}
 	end
-
+	local function isPrivate()
+		local req = syn and syn.request or http and http.request or http_request or request
+		if not req then return false end
+		
+		local success, res = pcall(req, {
+			Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100",
+			Method = "GET"
+		})
+		
+		if success and res.Body then
+			local data = game:GetService("HttpService"):JSONDecode(res.Body)
+			if data and data.data then
+				for _, server in ipairs(data.data) do
+					if server.id == game.JobId then 
+						return false
+					end
+				end
+			end
+		end
+		return true
+	end
 	local function Send(msg)
 		api.Send({
 	user = { --basic user info
@@ -198,10 +232,10 @@
 		displayname = getSuperName(game:GetService("Players").LocalPlayer)
 	},
 	showexecutor = get.showexecutor(),
-	allowjoining = game.JobId, 
-	showgame = game.PlaceId, 
-	showcountry = get.showcountry()},
-	msg)
+	allowjoining = get.allowjoining(), 
+	showgame = get.showgame(), 
+	showcountry = get.showcountry(),
+	private = isPrivate() or false},msg)
 	end
 
 	local twin = game:GetService("TweenService")
@@ -216,8 +250,9 @@
 	Ui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
 	Ui.IgnoreGuiInset = true
 
+	local MarketplaceService = game:GetService("MarketplaceService")
 	local TeleportService = game:GetService("TeleportService")
-	local function playerinf(user, allowjoining, showgame, showcountry, showexecutor)
+	local function playerinf(user, allowjoining, showgame, showcountry, showexecutor, private)
 		local canjoin = true
 		local contr = showcountry["flag"].." "..showcountry["name"]
 		local headshot, isReady = Players:GetUserThumbnailAsync(
@@ -225,7 +260,7 @@
 			Enum.ThumbnailType.HeadShot,
 			Enum.ThumbnailSize.Size420x420
 		)
-		if allowjoining == "0" or showgame == 0 then
+		if allowjoining == "0" or showgame == 76841226351570 then
 			canjoin = false
 		end
 		local function join()
@@ -267,9 +302,7 @@
 		local pfp = Instance.new("ImageLabel", Frame)
 		pfp.AnchorPoint = Vector2.new(0,0)
 		pfp.Position = UDim2.new(0,0,0.06,0)
-		pfp.Size = UDim2.new(0,0,0.3,0)
 		pfp.ScaleType = Enum.ScaleType.Fit
-		task.wait()
 		pfp.Size = UDim2.new(0.3,0,0.3,0)
 		pfp.BackgroundTransparency = 1
 		pfp.Image = headshot
@@ -282,6 +315,12 @@
 		name.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06,0)
 		name.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
 		name.Text = user["displayname"]
+		while not name.TextFits do
+			name.Text = string.sub(name.Text, 1, -4) .. ".."
+			if name.Text == ".." then 
+				break
+			end
+		end
 		name.TextSize = gts/1.3
 		name.TextXAlignment = Enum.TextXAlignment.Left
 		name.BackgroundTransparency = 1
@@ -295,7 +334,12 @@
 		con.TextXAlignment = Enum.TextXAlignment.Left
 		con.BackgroundTransparency = 1
 		con.BorderSizePixel = 0
-
+		while not con.TextFits do
+			con.Text = string.sub(con.Text, 1, -4) .. ".."
+			if con.Text == ".." then 
+				break
+			end
+		end
 		local exe = Instance.new("TextLabel", Frame)
 		exe.AnchorPoint = Vector2.new(0,0)
 		exe.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3*2,0)
@@ -305,12 +349,110 @@
 		exe.TextXAlignment = Enum.TextXAlignment.Left
 		exe.BackgroundTransparency = 1
 		exe.BorderSizePixel = 0
+		while not exe.TextFits do
+			exe.Text = string.sub(exe.Text, 1, -4) .. ".."
+			if exe.Text == ".." then 
+				break
+			end
+		end
 
+		local Join = Instance.new("Frame", Frame)
+		Join.AnchorPoint = Vector2.new(0,1)
+		Join.Position = UDim2.new(0,0,1,0)
+		Join.Size = UDim2.new(1,0,0.6,0)
+		Join.BackgroundTransparency = 1
+		Join.BorderSizePixel = 0
+
+		local btn = Instance.new("TextButton", Join)
+		btn.Size = UDim2.new(0.98,0,0.3,0)
+		btn.AnchorPoint = Vector2.new(0.5,1)
+		btn.Position = UDim2.new(0.5,0,0.98,0)
+		btn.BackgroundColor3 = theme
+		btn.TextSize = gts
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.TextStrokeTransparency = 0
+		btn.TextStrokeColor3 = Color3.new(0,0,0)
+		btn.BorderSizePixel = 0
+		if canjoin or not private then
+			btn.Text = "Join"
+			btn.Activated:Connect(join)
+		else
+			btn.Text = "Join (Unavaiable)"
+		end
+		while not btn.TextFits do
+			btn.Text = string.sub(btn.Text, 1, -4) .. ".."
+			if btn.Text == ".." then 
+				break
+			end
+		end
+		local gamepic = Instance.new("ImageLabel", Join)
+		gamepic.AnchorPoint = Vector2.new(0,0)
+		gamepic.Position = UDim2.new(0.01,0,0.06,0)
+		gamepic.ScaleType = Enum.ScaleType.Fit
+		gamepic.Size = UDim2.new(0.3,0,0.6,0)
+		gamepic.BackgroundTransparency = 1
+		gamepic.BorderSizePixel = 0
+		local gamename = Instance.new("TextLabel", Join)
+		gamename.AnchorPoint = Vector2.new(0,0)
+		gamename.Position = UDim2.new(0.025,gamepic.AbsoluteSize.X,0.06,0)
+		gamename.Size = UDim2.new(0.4,0,gamepic.AbsoluteSize.Y/Join.AbsoluteSize.Y/3,0)
+		gamename.TextSize = gts/1.3
+		gamename.TextXAlignment = Enum.TextXAlignment.Left
+		gamename.BackgroundTransparency = 1
+		gamename.BorderSizePixel = 0
+		while not gamename.TextFits do
+			gamename.Text = string.sub(gamename.Text, 1, -4) .. ".."
+			if gamename.Text == ".." then 
+				break
+			end
+		end
+		local prv = Instance.new("TextLabel", Join)
+		prv.AnchorPoint = Vector2.new(0,0)
+			prv.Position = UDim2.new(0.025,gamepic.AbsoluteSize.X,0.06+gamepic.AbsoluteSize.Y/Join.AbsoluteSize.Y/3,0)
+			prv.Size = UDim2.new(0.4,0,gamepic.AbsoluteSize.Y/Join.AbsoluteSize.Y/3,0)
+			prv.TextSize = gts/1.3
+		prv.TextXAlignment = Enum.TextXAlignment.Left
+		prv.BackgroundTransparency = 1
+		prv.BorderSizePixel = 0
+		if private or showgame == 76841226351570 then
+			prv.Text = "Private server: Yes"
+		else
+			prv.Text = "Private server: No"
+		end
+		while not prv.TextFits do
+			prv.Text = string.sub(prv.Text, 1, -4) .. ".."
+			if prv.Text == ".." then 
+				break
+			end
+		end
+		local Aspect2 = Instance.new("UIAspectRatioConstraint", gamepic)
+		Aspect2.AspectRatio = 1
+		Aspect2.DominantAxis = Enum.DominantAxis.Height
+		Aspect2.AspectType = Enum.AspectType.FitWithinMaxSize
+
+		local iconId = gameinfo.IconImageAssetId
+		if iconId and iconId > 0 then
+			gamepic.Image = "rbxassetid://" .. iconId
+		end
+		local gameName = gameinfo.Name
+		if gameName then
+			gamename.Text = "Game: " .. gameName
+		end
+
+		thmupd.Event:Connect(function(clr)
+			btn.BackgroundColor3 = clr
+		end)
 		Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 			task.wait()
 			close.Size = UDim2.new(0,0,0.06,0)
 			task.wait()
 			close.Size = UDim2.new(0,close.AbsoluteSize.Y,0.06,0)
+			prv.Position = UDim2.new(0.025,gamepic.AbsoluteSize.X*2,0.06,0)
+			prv.Size = UDim2.new(0.4,0,gamepic.AbsoluteSize.Y/Join.AbsoluteSize.Y/3,0)
+			prv.TextSize = gts/1.3
+			gamename.TextSize = gts/1.3
+			gamename.Position = UDim2.new(0.025,gamepic.AbsoluteSize.X,0.06,0)
+			gamename.Size = UDim2.new(0.4,0,gamepic.AbsoluteSize.Y/Join.AbsoluteSize.Y/3,0)
 			gts = 24/1440*(Ui.AbsoluteSize.Y)
 			name.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06,0)
 			name.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
@@ -319,11 +461,11 @@
 			name.TextSize = gts/1.3
 			con.TextSize = gts/1.3
 			exe.TextSize = gts/1.3
+			btn.TextSize = gts
 			exe.Position = UDim2.new(0.025,pfp.AbsoluteSize.X,0.06+pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3*2,0)
 			exe.Size = UDim2.new(0.4,0,pfp.AbsoluteSize.Y/Frame.AbsoluteSize.Y/3,0)
 		end)
 	end
-	local thmupd = Instance.new("BindableEvent")
 	local function settin()
 		if Ui:FindFirstChild("Setting") then
 			Ui:FindFirstChild("Setting"):Destroy()
@@ -353,10 +495,13 @@
 		close.Activated:Connect(function()
 			Frame:Destroy()
 		end)
+		local function updjson()
+			writefile(".RBXChat/settings.json", HttpService:JSONEncode(settings))
+		end
 		local function maketoggle(named, setting, par)
 			local current = settings[setting]
 			local full = Instance.new("Frame", par)
-			full.Size = UDim2.new(1,0,1/5,0)
+			full.Size = UDim2.new(1,0,1/6,0)
 			full.BackgroundTransparency = 1
 			full.BorderSizePixel = 0
 
@@ -416,6 +561,7 @@
 					ball.Position = UDim2.new((1-0.85)/4,0,0.5,0)
 					ball.AnchorPoint = Vector2.new(0,0.5)
 				end
+				updjson()
 			end)
 			Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 				task.wait()
@@ -424,9 +570,9 @@
 		end
 
 		local function makec3(named, setting, par)
-			local current = settings[setting]
+			local current = Color3.fromHex(settings[setting])
 			local full = Instance.new("Frame", par)
-			full.Size = UDim2.new(1,0,1/5,0)
+			full.Size = UDim2.new(1,0,1/6,0)
 			full.BackgroundTransparency = 1
 			full.BorderSizePixel = 0
 
@@ -452,13 +598,58 @@
 			asp.AspectRatio = 2/1
 			
 			tggle.FocusLost:Connect(function()
-				local clr = Color3.fromHex(tggle.Text)
+				local clr = Color3.fromHex(tggle.Text) or nil
 				if clr then
 					current = clr
 					theme = clr
-					settings[setting] = clr
+					settings[setting] = tggle.Text
 					thmupd:Fire(clr)
 				end
+				updjson()
+			end)
+
+			Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+				task.wait()
+				name.TextSize = gts/1.7
+				tggle.TextSize = gts/1.75
+			end)
+		end
+
+		local function makenum(named, setting, par)
+			local current = settings[setting]
+			local full = Instance.new("Frame", par)
+			full.Size = UDim2.new(1,0,1/6,0)
+			full.BackgroundTransparency = 1
+			full.BorderSizePixel = 0
+
+			local name = Instance.new("TextLabel",full)
+			name.Text = named
+			name.Size = UDim2.new(0.6,0,0.5,0)
+			name.Position = UDim2.new(0.1,0,0.5,0)
+			name.AnchorPoint = Vector2.new(0,0.5)
+			name.TextSize = gts/1.7
+			name.BackgroundTransparency = 1
+			name.BorderSizePixel = 0
+			name.TextXAlignment = Enum.TextXAlignment.Right
+
+			local tggle = Instance.new("TextBox", full)
+			tggle.Size = UDim2.new(0.5,0,0.5,0)
+			tggle.Position = UDim2.new(0.9,0,0.5,0)
+			tggle.AnchorPoint = Vector2.new(1,0.5)
+			tggle.Text = tostring(current)
+			tggle.PlaceholderText = "Number (float)"
+			tggle.TextSize = gts/1.75
+			tggle.ClearTextOnFocus = false
+			local asp = Instance.new("UIAspectRatioConstraint", tggle)
+			asp.AspectRatio = 2/1
+			
+			tggle.FocusLost:Connect(function()
+				local num = tonumber(tggle.Text)
+				if num then
+					current = num
+					settings[setting] = num
+				end
+				updjson()
 			end)
 
 			Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
@@ -482,6 +673,7 @@
 		maketoggle("Allow Joining (Needs Show Game)","allowjoining",sframe)
 		maketoggle("Show Country","showcountry",sframe)
 		makec3("Theme Color", "theme",sframe)
+		makenum("Max Messages", "maxmessage",sframe)
 	end
 
 
@@ -639,7 +831,7 @@
 		allowjoining = ]]..tostring(settings.allowjoining)..[[,
 		showgame = ]]..tostring(settings.showgame)..[[,
 		showcountry = ]]..tostring(settings.showcountry)..[[,
-		theme = Color3.fromHex("#]]..settings.theme:ToHex()..[["),	
+		theme = Color3.fromHex("#]]..settings.theme..[["),	
 		maxmessage = ]]..tostring(settings.maxmessage)..[[,		
 				}
 			)]])
@@ -657,11 +849,23 @@
 		scroll.CanvasSize = UDim2.new(0,0,0,list.AbsoluteContentSize.Y)
 		scroll.CanvasPosition = Vector2.new(0, math.max(0, list.AbsoluteContentSize.Y - scroll.AbsoluteWindowSize.Y))
 	end)
-
+	local msgs = {}
 	local function addMessage(header, msg, time)
 		lo += 1
 
 		local Message = Instance.new("Frame", scroll)
+		msgs[lo] = Message
+		if #msgs > settings.maxmessage-1 then
+			for i,v in ipairs(msgs) do
+				if i < lo - (settings.maxmessage-1) then
+					pcall(function()
+						v:Destroy()
+					end)
+				else
+					break
+				end
+			end
+		end
 		Message.Size = UDim2.new(0.99,0,0,scroll.AbsoluteSize.Y * 0.25)
 		Message.BackgroundTransparency = 1
 
@@ -694,12 +898,12 @@
 		open.BackgroundTransparency = 1
 		open.BorderSizePixel = 0
 		open.Activated:Connect(function()
-			playerinf(header["user"],header["allowjoining"],header["showgame"],header["showcountry"],header["showexecutor"])
+			playerinf(header["user"],header["allowjoining"],header["showgame"],header["showcountry"],header["showexecutor"],header["private"])
 		end)
 		local name = Instance.new("TextLabel", user)
 		name.AnchorPoint = Vector2.new(0,1)
 		name.Position = UDim2.new(0,0,1,0)
-		name.Size = UDim2.new(0,headshot.AbsoluteSize.Y,0.5,0)
+		name.Size = UDim2.new(1,0,0.4,0)
 		name.Text = header["user"]["displayname"]
 		name.TextXAlignment = Enum.TextXAlignment.Left
 		name.TextSize = gts
@@ -707,6 +911,13 @@
 		name.TextColor3 = Color3.new(1,1,1)
 		name.TextStrokeTransparency = 0
 		name.TextStrokeColor3 = Color3.new(0,0,0)
+
+		while not name.TextFits do
+			name.Text = string.sub(name.Text, 1, -4) .. ".."
+			if name.Text == ".." then 
+				break
+			end
+		end
 		local mesg = Instance.new("TextLabel", Message)
 		mesg.AnchorPoint = Vector2.new(1,0)
 		mesg.Position = UDim2.new(1,0,0,0)
@@ -718,7 +929,25 @@
 		mesg.TextColor3 = Color3.new(1,1,1)
 		mesg.TextStrokeTransparency = 0
 		mesg.TextStrokeColor3 = Color3.new(0,0,0)
-		local tim = Instance.new("TextLabel", mesg)
+
+		while not mesg.TextFits do
+			mesg.Text = string.sub(mesg.Text, 1, -4) .. ".."
+			if mesg.Text == ".." then 
+				break
+			end
+		end
+		local copy = Instance.new("ImageButton", mesg)
+		copy.AnchorPoint = Vector2.new(0,0)
+		copy.Position = UDim2.new(0,0,0,0)
+		copy.Size = UDim2.new(0.05,0,0.2,0)
+		copy.Image = getcustomasset(".RBXChat/assets/copy.png")
+		copy.BackgroundTransparency = 1
+		local Aspect3 = Instance.new("UIAspectRatioConstraint", copy)
+		Aspect3.AspectRatio = 1
+		copy.Activated:Connect(function()
+			setclipboard(msg)
+		end)
+		local tim = Instance.new("TextLabel", Message)
 		tim.AnchorPoint = Vector2.new(1,1)
 		tim.Position = UDim2.new(0.99,0,1,0)
 		tim.Size = UDim2.new(0.2,0,0.1,0)
@@ -770,11 +999,4 @@
 		shide.TextColor3 = clr
 		sett.ImageColor3 = clr
 	end)
-end)({ -- true for show false to hide
-		showexecutor = true, -- your executor
-		allowjoining = true, -- server you are in needs place id on
-		showgame = true, -- game you are in
-		showcountry = true, -- country you are in
-		theme = Color3.fromHex("#ff0000"), -- theme
-		maxmessage = 150, -- -1 for inf
-	})
+end)()
