@@ -1,4 +1,4 @@
-(function(settings)
+return (function(settings)
 	local HttpService = game:GetService("HttpService")
 	for _, folder in {".RBXChat", ".RBXChat/assets"} do
 		if not isfolder(folder) then
@@ -999,4 +999,4 @@
 		shide.TextColor3 = clr
 		sett.ImageColor3 = clr
 	end)
-end)()
+end)
