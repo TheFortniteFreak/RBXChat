@@ -825,16 +825,7 @@ return (function(settings)
 	local queueteleport =  queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 	game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
 		if queueteleport then
-			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()(
-				{
-		showexecutor = ]]..tostring(settings.showexecutor)..[[,
-		allowjoining = ]]..tostring(settings.allowjoining)..[[,
-		showgame = ]]..tostring(settings.showgame)..[[,
-		showcountry = ]]..tostring(settings.showcountry)..[[,
-		theme = Color3.fromHex("#]]..settings.theme..[["),	
-		maxmessage = ]]..tostring(settings.maxmessage)..[[,		
-				}
-			)]])
+			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()()]])
 		end
 	end)
 
