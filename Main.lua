@@ -76,7 +76,13 @@ return (function(settings)
 			return 76841226351570
 		end,
 	}
-
+    local UserInputService = game:GetService("UserInputService")
+    local IsOnMobile
+    xpcall(function()
+        IsOnMobile = table.find({Enum.Platform.Android, Enum.Platform.IOS}, UserInputService:GetPlatform())
+    end, function()
+        IsOnMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    end)
 
 	local api = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/API.lua"))()
 
@@ -86,8 +92,10 @@ return (function(settings)
 	end
 
 	api.Connect("wss://chat-api-global.momo-momoisreal.workers.dev")
-
-	local theme = Color3.fromHex(settings.theme)
+    local theme = Color3.fromHex("#ff0000")
+    if typeof(settings.theme) == "string" and  #settings.theme == 7 then
+        theme = Color3.fromHex(settings.theme)
+    end
 	local thmupd = Instance.new("BindableEvent")
 
 	local function getcountry()
@@ -249,7 +257,6 @@ return (function(settings)
 	Ui.ClipToDeviceSafeArea = false
 	Ui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
 	Ui.IgnoreGuiInset = true
-
 	local MarketplaceService = game:GetService("MarketplaceService")
 	local TeleportService = game:GetService("TeleportService")
 	local function playerinf(user, allowjoining, showgame, showcountry, showexecutor, private)
@@ -275,6 +282,9 @@ return (function(settings)
 		--ui
 		local Frame = Instance.new("Frame", Ui)
 		Frame.Size = UDim2.new(0.2,0,0.4,0)
+        if IsOnMobile then
+            Frame.Size = UDim2.new(0.4,0,0.7,0)
+        end
 		Frame.AnchorPoint = Vector2.new(0.5,0.5)
 		Frame.Position = UDim2.new(0.5,0,0.5,0)
 		Frame.BorderSizePixel = 0
@@ -473,6 +483,9 @@ return (function(settings)
 		local Frame = Instance.new("Frame", Ui)
 		Frame.Name = "Setting"
 		Frame.Size = UDim2.new(0.2,0,0.4,0)
+        if IsOnMobile then
+            Frame.Size = UDim2.new(0.4,0,0.7,0)
+        end
 		Frame.AnchorPoint = Vector2.new(0.5,0.5)
 		Frame.Position = UDim2.new(0.5,0,0.5,0)
 		local Move = Instance.new("UIDragDetector", Frame)
@@ -570,7 +583,10 @@ return (function(settings)
 		end
 
 		local function makec3(named, setting, par)
-			local current = Color3.fromHex(settings[setting])
+			local current = Color3.fromHex("#ff0000")
+            if typeof(settings[setting]) == "string" and  #settings[setting] == 7 then
+                current = Color3.fromHex(settings[setting])
+            end
 			local full = Instance.new("Frame", par)
 			full.Size = UDim2.new(1,0,1/6,0)
 			full.BackgroundTransparency = 1
@@ -723,7 +739,7 @@ return (function(settings)
 	shide.Rotation = 90
 	shide.AnchorPoint = Vector2.new(0,0)
 	shide.Position = UDim2.new(0,0,1,0)
-	shide.Size = UDim2.new(0.05,0,0.05,0)
+	shide.Size = UDim2.new(0.05,0,0.075,0)
 	shide.TextScaled = true
 	shide.TextColor3 = theme
 	shide.TextStrokeTransparency = 0
@@ -748,10 +764,42 @@ return (function(settings)
 	sett.Image = getcustomasset(".RBXChat/assets/settings.png")
 	sett.AnchorPoint = Vector2.new(1,0)
 	sett.Position = UDim2.new(1,0,1,0)
-	sett.Size = UDim2.new(0.05,0,0.05,0)
+	sett.Size = UDim2.new(0.05,0,0.075,0)
 	sett.ImageColor3 = theme
 	sett.BackgroundTransparency = 1
 	sett.Activated:Connect(settin)
+
+    if IsOnMobile then
+        local shidse = Instance.new("TextButton", Ui)
+        shidse.Text = "Show/Hide"
+        shidse.Size = UDim2.fromScale(0.1,0.075)
+        shidse.Position = UDim2.fromScale(0, 0.4)
+        shidse.TextSize = gts
+
+        shidse.Activated:Connect(function()
+            local tween = twin:Create(shide, TweenInfo.new(
+                0.5,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            ), {
+                Rotation = shide.Rotation + 180
+            })
+            tween:Play()
+            togglevisibility()
+        end)
+        local settis = Instance.new("TextButton", shidse)
+        settis.Size = UDim2.fromScale(1,1)
+        settis.Position = UDim2.fromScale(0,1)
+        settis.Text = "Settings"
+        settis.TextSize = gts
+        settis.Activated:Connect(settin)
+
+        Ui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            gts = 24/1440*(Ui.AbsoluteSize.Y)
+            settis.TextSize = gts
+            shidse.TextSize = gts
+        end)
+    end
 
 	local input = Instance.new("Frame", MainFrame)
 	input.AnchorPoint = Vector2.new(0.5,1)
@@ -825,7 +873,16 @@ return (function(settings)
 	local queueteleport =  queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 	game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
 		if queueteleport then
-			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()()]])
+			queueteleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/TheFortniteFreak/RBXChat/refs/heads/main/Main.lua"))()(
+				{
+		showexecutor = ]]..tostring(settings.showexecutor)..[[,
+		allowjoining = ]]..tostring(settings.allowjoining)..[[,
+		showgame = ]]..tostring(settings.showgame)..[[,
+		showcountry = ]]..tostring(settings.showcountry)..[[,
+		theme = Color3.fromHex("#]]..settings.theme..[["),	
+		maxmessage = ]]..tostring(settings.maxmessage)..[[,		
+				}
+			)]])
 		end
 	end)
 
